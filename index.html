@@ -1,99 +1,68 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K-Pop 台灣行程表</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: sans-serif; background-color: #f9fafb; }
-        .loading-spinner { border: 3px solid #f3f3f3; border-top: 3px solid #ec4899; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
-</head>
-<body class="min-h-screen">
+<script src="data.js"></script>
+<script>
+    const listDiv = document.getElementById('list');
+    const searchInput = document.getElementById('searchInput');
 
-    <header class="bg-white border-b sticky top-0 z-50 p-4 shadow-sm">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold text-pink-600">🇰🇷 K-POP 行程</h1>
-            <div id="status" class="text-[10px] text-green-500 font-bold">● 已連線</div>
-        </div>
-    </header>
-
-    <main class="max-w-md mx-auto p-4">
-        <input type="text" id="searchInput" placeholder="搜尋偶像或團體..." 
-            class="w-full p-4 rounded-2xl border-none shadow-md mb-6 focus:ring-2 focus:ring-pink-500">
-
-        <div id="list" class="space-y-4">
-            <div class="flex flex-col items-center justify-center py-20 text-gray-400">
-                <div class="loading-spinner mb-4"></div>
-                <p>正在同步雲端資料...</p>
-            </div>
-        </div>
-    </main>
-
-    <script src="data.js"></script>
-
-    <script>
-        // 核心修復邏輯：強制清理所有可能的格式錯誤
-        function safeClean(data) {
-            if (!Array.isArray(data)) return [];
-            return data.map(obj => {
-                const newObj = {};
-                Object.keys(obj).forEach(key => {
-                    // 清理鍵名：去引號、去空格、轉小寫
-                    const cleanKey = key.replace(/['"]+/g, '').trim().toLowerCase();
-                    // 清理內容：去引號、去空格
-                    const cleanVal = String(obj[key]).replace(/['"]+/g, '').trim();
-                    newObj[cleanKey] = cleanVal;
-                });
-                return newObj;
-            });
-        }
-
-        const listDiv = document.getElementById('list');
-        const searchInput = document.getElementById('searchInput');
+    // 1. 超強防呆清理：忽略大小寫、空格、標題列
+    function getCleanData(raw) {
+        if (!Array.isArray(raw) || raw.length === 0) return [];
         
-        // 取得清理後的資料
-        const rawData = (typeof kpopData !== 'undefined') ? kpopData : [];
-        const cleanData = safeClean(rawData);
-
-        function render(items) {
-            if (items.length === 0) {
-                listDiv.innerHTML = '<div class="text-center py-10 text-gray-400">目前沒有資料，請確認試算表內容</div>';
-                return;
-            }
-
-            listDiv.innerHTML = items.map(item => `
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between text-[10px] mb-2 font-bold uppercase tracking-widest text-pink-500">
-                        <span>${item.source || '官方'}</span>
-                        <span class="text-gray-400">${item.date || ''}</span>
-                    </div>
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">${item.group || '未知活動'}</h2>
-                    <a href="${item.link || '#'}" target="_blank" class="block text-center bg-gray-900 text-white text-sm font-bold py-3 rounded-xl shadow-lg active:scale-95 transition-all">前往售票頁面</a>
-                </div>
-            `).join('');
-        }
-
-        // 搜尋邏輯
-        searchInput.addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase().trim();
-            const filtered = cleanData.filter(i => 
-                (i.group || "").toLowerCase().includes(val) || 
-                (i.source || "").toLowerCase().includes(val)
-            );
-            render(filtered);
+        return raw.filter(item => {
+            // 過濾掉看起來像標題的資料 (例如 group 欄位剛好叫 "group")
+            const isHeader = String(item.group || "").toLowerCase().trim() === 'group';
+            return !isHeader;
+        }).map(item => {
+            const cleanObj = {};
+            // 同時處理大小寫標題，確保無論 Google Sheet 寫 Date 或 date 都能讀到
+            Object.keys(item).forEach(key => {
+                const k = key.replace(/['"]+/g, '').trim().toLowerCase();
+                const v = String(item[key]).replace(/['"]+/g, '').trim();
+                cleanObj[k] = v;
+            });
+            return {
+                date: cleanObj.date || cleanObj['日期'] || '未定',
+                group: cleanObj.group || cleanObj['團體'] || '未知活動',
+                link: cleanObj.link || cleanObj['連結'] || '#',
+                source: cleanObj.source || cleanObj['來源'] || '官方'
+            };
         });
+    }
 
-        // 啟動渲染
-        setTimeout(() => {
-            if (cleanData.length === 0) {
-                listDiv.innerHTML = '<div class="text-center py-10 text-red-400">載入失敗：data.js 內容格式不正確</div>';
-            } else {
-                render(cleanData);
-            }
-        }, 500); // 稍微延遲讓動畫順暢
-    </script>
-</body>
-</html>
+    // 取得資料
+    const raw = (typeof kpopData !== 'undefined') ? kpopData : [];
+    const data = getCleanData(raw);
+
+    function render(items) {
+        if (items.length === 0) {
+            listDiv.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold text-lg">目前沒有符合的行程 🔎</div>';
+            return;
+        }
+        listDiv.innerHTML = items.map(i => `
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-4">
+                <div class="flex justify-between text-[10px] mb-2 font-bold text-pink-500">
+                    <span>${i.source}</span>
+                    <span class="text-gray-400">${i.date}</span>
+                </div>
+                <h2 class="text-lg font-bold text-gray-800 mb-4">${i.group}</h2>
+                <a href="${i.link}" target="_blank" class="block text-center bg-gray-900 text-white text-sm font-bold py-3 rounded-xl shadow-lg hover:bg-pink-600 transition-all">前往售票頁面</a>
+            </div>
+        `).join('');
+    }
+
+    // 搜尋功能
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        const filtered = data.filter(i => 
+            i.group.toLowerCase().includes(val) || 
+            i.source.toLowerCase().includes(val)
+        );
+        render(filtered);
+    });
+
+    // 立即執行：不要延遲，直接顯示
+    if (data.length > 0) {
+        render(data);
+    } else {
+        listDiv.innerHTML = '<div class="text-center py-10 text-red-400">系統找不到資料，請確認 Google Sheet 第一列標題是否正確。</div>';
+    }
+</script>
