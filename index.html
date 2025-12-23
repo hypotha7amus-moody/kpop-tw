@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Pop 台灣行程自動更新版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50">
+    <div class="max-w-md mx-auto py-10 px-4">
+        <h1 class="text-2xl font-bold text-pink-600 mb-6 text-center">🇰🇷 韓團在台行程</h1>
+        <div id="list" class="space-y-4"></div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        const listDiv = document.getElementById('list');
+        if (typeof kpopData !== 'undefined') {
+            listDiv.innerHTML = kpopData.map(item => `
+                <div class="bg-white p-4 rounded-lg shadow border-l-4 border-pink-500">
+                    <p class="text-xs text-gray-400">${item.date}</p>
+                    <h2 class="font-bold text-gray-800">${item.group}</h2>
+                    <a href="${item.link}" target="_blank" class="text-pink-500 text-sm font-semibold hover:underline">查看售票連結 →</a>
+                </div>
+            `).join('');
+        } else {
+            listDiv.innerHTML = "<p class='text-center text-gray-500'>尚未抓取到資料，請執行 Python 腳本。</p>";
+        }
+    </script>
+</body>
+</html>
