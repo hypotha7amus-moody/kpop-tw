@@ -7,56 +7,103 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans TC', sans-serif; }
-        .concert-card:hover { transform: translateY(-2px); }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f9fafb; }
+        .concert-card { transition: all 0.3s ease; }
+        .concert-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        /* 隱藏捲軸但保持功能 */
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen pb-20">
 
-    <header class="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div class="max-w-md mx-auto px-4 py-4 flex justify-between items-center">
+    <header class="bg-white border-b sticky top-0 z-50 shadow-sm">
+        <div class="max-w-md mx-auto px-6 py-4 flex justify-between items-center">
             <h1 class="text-xl font-bold text-pink-600 tracking-tight">🇰🇷 K-POP 行程表</h1>
-            <span class="text-[10px] bg-pink-50 text-pink-500 px-2 py-1 rounded-full border border-pink-100">全台售票自動更新</span>
+            <div class="flex items-center space-x-2">
+                <span class="animate-pulse w-2 h-2 bg-green-500 rounded-full"></span>
+                <span class="text-[10px] text-gray-500 font-medium">即時更新中</span>
+            </div>
         </div>
     </header>
 
     <main class="max-w-md mx-auto py-6 px-4">
-        <div class="mb-6">
-            <input type="text" id="searchInput" placeholder="搜尋偶像或團體..." 
-                class="w-full px-4 py-3 rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-pink-500 bg-white">
+        <div class="relative mb-8">
+            <input type="text" id="searchInput" placeholder="搜尋偶像、團體或售票系統..." 
+                class="w-full px-5 py-4 rounded-2xl border-none shadow-md focus:ring-2 focus:ring-pink-500 bg-white text-gray-700 placeholder-gray-400">
+            <div class="absolute right-4 top-4 text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
         </div>
 
         <div id="list" class="space-y-4">
-            <div class="text-center py-10 text-gray-400">資料加載中...</div>
+            <div class="text-center py-20 text-gray-400">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                正在獲取最新行程...
+            </div>
         </div>
     </main>
 
-    <footer class="max-w-md mx-auto py-8 text-center text-gray-400 text-xs">
-        <p>© 2025 K-Pop Taiwan Finder</p>
-        <p class="mt-1">資料來源：KKTIX、拓元、遠大售票</p>
+    <footer class="max-w-md mx-auto py-10 text-center">
+        <p class="text-gray-400 text-xs">© 2025 K-Pop Taiwan Finder</p>
+        <p class="text-gray-300 text-[10px] mt-1 italic">資料來源：Google Sheets / 自動爬蟲整合</p>
     </footer>
 
     <script src="data.js"></script>
-    <script>
-        const listDiv = document.getElementById('list');
 
+    <script>
+        // 2. 核心數據清理邏輯 (解決 Google Sheets CSV 產生的多餘引號問題)
+        function getCleanData(raw) {
+            if (!raw || !Array.isArray(raw)) return [];
+            return raw.map(item => {
+                const newItem = {};
+                for (let key in item) {
+                    // 清理鍵名 (Key) 與 內容 (Value) 的引號與空白
+                    let cleanKey = key.replace(/['"]+/g, '').trim().toLowerCase();
+                    let cleanValue = String(item[key]).replace(/['"]+/g, '').trim();
+                    newItem[cleanKey] = cleanValue;
+                }
+                return newItem;
+            });
+        }
+
+        const rawData = typeof kpopData !== 'undefined' ? kpopData : [];
+        const cleanData = getCleanData(rawData);
+        const listDiv = document.getElementById('list');
+        const searchInput = document.getElementById('searchInput');
+
+        // 3. 渲染網頁清單
         function renderList(data) {
-            if (!data || data.length === 0) {
-                listDiv.innerHTML = "<p class='text-center text-gray-500 py-10'>目前沒有最新行程，休息一下吧！</p>";
+            if (data.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="bg-white rounded-3xl p-10 text-center shadow-sm">
+                        <p class="text-gray-400 text-lg">🔍</p>
+                        <p class="text-gray-500 mt-2 font-medium">找不到相關行程</p>
+                        <button onclick="location.reload()" class="mt-4 text-pink-500 text-sm font-bold">重整頁面</button>
+                    </div>`;
                 return;
             }
 
             listDiv.innerHTML = data.map(item => `
-                <div class="concert-card bg-white p-5 rounded-2xl shadow-sm border border-gray-100 transition-all duration-300">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-xs font-medium text-gray-400 flex items-center">
-                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            ${item.date}
+                <div class="concert-card bg-white p-6 rounded-3xl shadow-sm border border-gray-50 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="bg-pink-50 text-pink-600 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider">
+                            ${item.source || '官方來源'}
                         </span>
-                        <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
-                            ${item.source}
+                        <span class="text-xs text-gray-400 font-medium">
+                            ${item.date || '日期未定'}
                         </span>
                     </div>
-                    <h2 class="font-bold text-gray-800 text-lg mb-4 leading-snug">${item.group}</h2>
-                    <a href="${item.link}" target="_blank" 
-                       class="block w-full text-center bg-gray-900 text-white text-sm font-bold py-3 rounded-xl hover
+                    <h2 class="font-extrabold text-gray-800 text-xl mb-5 leading-tight">
+                        ${item.group || '未知行程'}
+                    </h2>
+                    <a href="${item.link || '#'}" target="_blank" 
+                       class="block w-full text-center bg-gray-900 text-white text-sm font-bold py-4 rounded-2xl hover:bg-pink-600 transition-all shadow-lg active:scale-95">
+                        前往售票官網
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        // 4. 搜尋功能 (即時過濾)
+        searchInput.addEventListener('input', (e) => {
+            const keyword =
