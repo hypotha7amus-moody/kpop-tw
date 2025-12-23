@@ -34,7 +34,7 @@ def fetch_tixcraft():
         for item in soup.select('.thumbnail'):
             title_el = item.select_one('h2')
             title = title_el.text.strip() if title_el else ""
-            if any(k in title for k in ["韓", "Korea", "Fan Meeting", "Tour", "LIVE", "ASIA"]):
+            if any(k in title for k in ["TAIPEI", "Taipei", "Fan Meeting", "Tour", "LIVE", "ASIA"]):
                 link_el = item.select_one('a')
                 link = "https://tixcraft.com" + link_el['href'] if link_el else "#"
                 events.append({
@@ -94,3 +94,4 @@ def update_all():
 
 if __name__ == "__main__":
     update_all()
+
