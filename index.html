@@ -58,24 +58,50 @@
         const rawData = (typeof kpopData !== 'undefined') ? kpopData : [];
         const cleanData = safeClean(rawData);
 
-        function render(items) {
-            if (items.length === 0) {
-                listDiv.innerHTML = '<div class="text-center py-10 text-gray-400">目前沒有資料，請確認試算表內容</div>';
-                return;
-            }
+function render(items) {
+    if (items.length === 0) {
+        listDiv.innerHTML = '<div class="text-center py-10 text-gray-400 font-bold text-lg">目前沒有符合的行程 🔎</div>';
+        return;
+    }
 
-            listDiv.innerHTML = items.map(item => `
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between text-[10px] mb-2 font-bold uppercase tracking-widest text-pink-500">
-                        <span>${item.source || '官方'}</span>
-                        <span class="text-gray-400">${item.date || ''}</span>
-                    </div>
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">${item.group || '未知活動'}</h2>
-                    <a href="${item.link || '#'}" target="_blank" class="block text-center bg-gray-900 text-white text-sm font-bold py-3 rounded-xl shadow-lg active:scale-95 transition-all">前往售票頁面</a>
-                </div>
-            `).join('');
+    const now = new Date();
+
+    listDiv.innerHTML = items.map(i => {
+        // 嘗試解析日期
+        const eventDate = new Date(i.date);
+        let statusTag = '';
+        
+        // 如果日期解析成功，計算距離天數
+        if (!isNaN(eventDate)) {
+            const diffTime = eventDate - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays > 0) {
+                statusTag = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-[10px]">倒數 ${diffDays} 天</span>`;
+            } else if (diffDays === 0) {
+                statusTag = `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded text-[10px] animate-pulse">今天開演！</span>`;
+            } else {
+                statusTag = `<span class="bg-gray-100 text-gray-400 px-2 py-0.5 rounded text-[10px]">已結束</span>`;
+            }
         }
 
+        return `
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 mb-4 transition-all hover:shadow-md">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex gap-2">
+                        <span class="bg-pink-50 text-pink-500 px-2 py-0.5 rounded text-[10px] font-bold">${i.source}</span>
+                        ${statusTag}
+                    </div>
+                    <span class="text-gray-400 text-[10px] font-mono">${i.date}</span>
+                </div>
+                <h2 class="text-lg font-extrabold text-gray-800 mb-5 leading-tight">${i.group}</h2>
+                <a href="${i.link}" target="_blank" class="block text-center bg-gray-900 text-white text-sm font-bold py-4 rounded-2xl shadow-lg active:scale-95 hover:bg-pink-600 transition-all">
+                    前往查看詳情
+                </a>
+            </div>
+        `;
+    }).join('');
+}
         // 搜尋邏輯
         searchInput.addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase().trim();
@@ -97,3 +123,4 @@
     </script>
 </body>
 </html>
+
