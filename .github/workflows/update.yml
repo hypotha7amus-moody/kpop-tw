@@ -1,0 +1,34 @@
+name: 自動更新 K-Pop 行程
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # 每 6 小時執行一次 (UTC 時間)
+  workflow_dispatch:      # 允許手動點擊執行測試
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 複製儲存庫代碼內容
+        uses: actions/checkout@v3
+
+      - name: 設定 Python 環境
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 安裝必要套件
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: 執行爬蟲腳本
+        run: |
+          python run_site.py
+
+      - name: 將更新後的資料存回 GitHub
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data.js
+          git commit -m "自動更新行程資料" || exit 0
+          git push
