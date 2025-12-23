@@ -1,1 +1,1 @@
-const kpopData = [];
+const kpopData = [{"date": "3/21", "group": "twice", "link": "https://tixcraft.com/activity/detail/26_twice", "source": "拓元"}, {"date": "1/10", "group": "fifty fifty", "link": "https://ticketplus.com.tw/activity/215ed8c0518703991cffb6921608838a", "source": "遠大"}];
