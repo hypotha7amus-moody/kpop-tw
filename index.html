@@ -3,107 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>K-Pop 台灣行程一站式查詢</title>
+    <title>K-Pop 台灣行程表</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f9fafb; }
-        .concert-card { transition: all 0.3s ease; }
-        .concert-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        /* 隱藏捲軸但保持功能 */
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        body { font-family: sans-serif; background-color: #f9fafb; }
+        .loading-spinner { border: 3px solid #f3f3f3; border-top: 3px solid #ec4899; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="min-h-screen pb-20">
+<body class="min-h-screen">
 
-    <header class="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div class="max-w-md mx-auto px-6 py-4 flex justify-between items-center">
-            <h1 class="text-xl font-bold text-pink-600 tracking-tight">🇰🇷 K-POP 行程表</h1>
-            <div class="flex items-center space-x-2">
-                <span class="animate-pulse w-2 h-2 bg-green-500 rounded-full"></span>
-                <span class="text-[10px] text-gray-500 font-medium">即時更新中</span>
-            </div>
+    <header class="bg-white border-b sticky top-0 z-50 p-4 shadow-sm">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-pink-600">🇰🇷 K-POP 行程</h1>
+            <div id="status" class="text-[10px] text-green-500 font-bold">● 已連線</div>
         </div>
     </header>
 
-    <main class="max-w-md mx-auto py-6 px-4">
-        <div class="relative mb-8">
-            <input type="text" id="searchInput" placeholder="搜尋偶像、團體或售票系統..." 
-                class="w-full px-5 py-4 rounded-2xl border-none shadow-md focus:ring-2 focus:ring-pink-500 bg-white text-gray-700 placeholder-gray-400">
-            <div class="absolute right-4 top-4 text-gray-300">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            </div>
-        </div>
+    <main class="max-w-md mx-auto p-4">
+        <input type="text" id="searchInput" placeholder="搜尋偶像或團體..." 
+            class="w-full p-4 rounded-2xl border-none shadow-md mb-6 focus:ring-2 focus:ring-pink-500">
 
         <div id="list" class="space-y-4">
-            <div class="text-center py-20 text-gray-400">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500 mx-auto mb-4"></div>
-                正在獲取最新行程...
+            <div class="flex flex-col items-center justify-center py-20 text-gray-400">
+                <div class="loading-spinner mb-4"></div>
+                <p>正在同步雲端資料...</p>
             </div>
         </div>
     </main>
 
-    <footer class="max-w-md mx-auto py-10 text-center">
-        <p class="text-gray-400 text-xs">© 2025 K-Pop Taiwan Finder</p>
-        <p class="text-gray-300 text-[10px] mt-1 italic">資料來源：Google Sheets / 自動爬蟲整合</p>
-    </footer>
-
     <script src="data.js"></script>
 
     <script>
-        // 2. 核心數據清理邏輯 (解決 Google Sheets CSV 產生的多餘引號問題)
-        function getCleanData(raw) {
-            if (!raw || !Array.isArray(raw)) return [];
-            return raw.map(item => {
-                const newItem = {};
-                for (let key in item) {
-                    // 清理鍵名 (Key) 與 內容 (Value) 的引號與空白
-                    let cleanKey = key.replace(/['"]+/g, '').trim().toLowerCase();
-                    let cleanValue = String(item[key]).replace(/['"]+/g, '').trim();
-                    newItem[cleanKey] = cleanValue;
-                }
-                return newItem;
+        // 核心修復邏輯：強制清理所有可能的格式錯誤
+        function safeClean(data) {
+            if (!Array.isArray(data)) return [];
+            return data.map(obj => {
+                const newObj = {};
+                Object.keys(obj).forEach(key => {
+                    // 清理鍵名：去引號、去空格、轉小寫
+                    const cleanKey = key.replace(/['"]+/g, '').trim().toLowerCase();
+                    // 清理內容：去引號、去空格
+                    const cleanVal = String(obj[key]).replace(/['"]+/g, '').trim();
+                    newObj[cleanKey] = cleanVal;
+                });
+                return newObj;
             });
         }
 
-        const rawData = typeof kpopData !== 'undefined' ? kpopData : [];
-        const cleanData = getCleanData(rawData);
         const listDiv = document.getElementById('list');
         const searchInput = document.getElementById('searchInput');
+        
+        // 取得清理後的資料
+        const rawData = (typeof kpopData !== 'undefined') ? kpopData : [];
+        const cleanData = safeClean(rawData);
 
-        // 3. 渲染網頁清單
-        function renderList(data) {
-            if (data.length === 0) {
-                listDiv.innerHTML = `
-                    <div class="bg-white rounded-3xl p-10 text-center shadow-sm">
-                        <p class="text-gray-400 text-lg">🔍</p>
-                        <p class="text-gray-500 mt-2 font-medium">找不到相關行程</p>
-                        <button onclick="location.reload()" class="mt-4 text-pink-500 text-sm font-bold">重整頁面</button>
-                    </div>`;
+        function render(items) {
+            if (items.length === 0) {
+                listDiv.innerHTML = '<div class="text-center py-10 text-gray-400">目前沒有資料，請確認試算表內容</div>';
                 return;
             }
 
-            listDiv.innerHTML = data.map(item => `
-                <div class="concert-card bg-white p-6 rounded-3xl shadow-sm border border-gray-50 relative overflow-hidden">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="bg-pink-50 text-pink-600 text-[10px] px-3 py-1 rounded-full font-bold uppercase tracking-wider">
-                            ${item.source || '官方來源'}
-                        </span>
-                        <span class="text-xs text-gray-400 font-medium">
-                            ${item.date || '日期未定'}
-                        </span>
+            listDiv.innerHTML = items.map(item => `
+                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between text-[10px] mb-2 font-bold uppercase tracking-widest text-pink-500">
+                        <span>${item.source || '官方'}</span>
+                        <span class="text-gray-400">${item.date || ''}</span>
                     </div>
-                    <h2 class="font-extrabold text-gray-800 text-xl mb-5 leading-tight">
-                        ${item.group || '未知行程'}
-                    </h2>
-                    <a href="${item.link || '#'}" target="_blank" 
-                       class="block w-full text-center bg-gray-900 text-white text-sm font-bold py-4 rounded-2xl hover:bg-pink-600 transition-all shadow-lg active:scale-95">
-                        前往售票官網
-                    </a>
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">${item.group || '未知活動'}</h2>
+                    <a href="${item.link || '#'}" target="_blank" class="block text-center bg-gray-900 text-white text-sm font-bold py-3 rounded-xl shadow-lg active:scale-95 transition-all">前往售票頁面</a>
                 </div>
             `).join('');
         }
 
-        // 4. 搜尋功能 (即時過濾)
+        // 搜尋邏輯
         searchInput.addEventListener('input', (e) => {
-            const keyword =
+            const val = e.target.value.toLowerCase().trim();
+            const filtered = cleanData.filter(i => 
+                (i.group || "").toLowerCase().includes(val) || 
+                (i.source || "").toLowerCase().includes(val)
+            );
+            render(filtered);
+        });
+
+        // 啟動渲染
+        setTimeout(() => {
+            if (cleanData.length === 0) {
+                listDiv.innerHTML = '<div class="text-center py-10 text-red-400">載入失敗：data.js 內容格式不正確</div>';
+            } else {
+                render(cleanData);
+            }
+        }, 500); // 稍微延遲讓動畫順暢
+    </script>
+</body>
+</html>
